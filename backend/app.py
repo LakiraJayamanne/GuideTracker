@@ -1,22 +1,11 @@
 from fastapi import FastAPI, Depends
 from fastapi.responses import FileResponse
-from sqlmodel import SQLModel, create_engine, Session, select
-from database import create_db_and_tables, get_session
-from models import Position
+from sqlmodel import Session, select
+from backend.database import create_db_and_tables, get_session
+from backend.models import Position
 from pydantic import BaseModel
-from geofence import haversine
+from backend.geofence import haversine
 import os
-
-#SQLite DB will be a file on disk.
-DATABASE_URL = "sqlite:///positions.db" 
-engine = create_engine(DATABASE_URL, echo=True)
-
-def create_db_and_tables():
-    SQLModel.metadata.create_all(engine)
-    
-def get_session():
-    with Session(engine) as session:
-        yield session
 
 #app stuff
 app = FastAPI()

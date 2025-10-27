@@ -1,5 +1,5 @@
 from sqlmodel import SQLModel, create_engine, Session
-from models import Position  # ✅ This line makes the model visible
+from backend.models import Position  # make the model visible via package import
 
 DATABASE_URL = "sqlite:///positions.db"
 engine = create_engine(DATABASE_URL, echo=True)
