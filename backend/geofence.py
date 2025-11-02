@@ -1,15 +1,10 @@
-import math
-
-#Harvenstine formula: returns distance in meters between two lat/lon points.
+from math import radians, cos, sin, asin, sqrt
 
 def haversine(lat1, lon1, lat2, lon2):
-    R = 6371000  # Radius of the Earth in meters
-    phi1 = math.radians(lat1)
-    phi2 = math.radians(lat2)
-    d_phi = math.radians(lat2 - lat1)
-    d_lambda = math.radians(lon2 - lon1)
-    
-    a = math.sin(d_phi / 2) ** 2 + math.cos(phi1) * math.cos(phi2) * math.sin(d_lambda / 2) ** 2
-    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))
-    
+    R = 6371000  # radius of Earth in meters
+    dlat = radians(lat2 - lat1)
+    dlon = radians(lon2 - lon1)
+    a = sin(dlat / 2)**2 + cos(radians(lat1)) * cos(radians(lat2)) * sin(dlon / 2)**2
+    c = 2 * asin(sqrt(a))
+ 
     return R * c

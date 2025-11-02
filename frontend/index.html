@@ -13,40 +13,46 @@
 </head>
 <body>
 
+<div id="status" style="padding: 10px; font-weight: bold;">
+  State: <span id="state">Loading...</span>
+</div>
+
 <div id="map"></div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
 <script>
-  const map = L.map('map').setView([0, 0], 2);
+  const map = L.map('map').setView([51.5007, -0.1246], 16);
+
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '© OpenStreetMap'
   }).addTo(map);
 
   let marker = null;
 
-  async function postPosition(lat, lng) {
-    try {
-      const res = await fetch('/api/positions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ latitude: lat, longitude: lng })
-      });
-      const data = await res.json();
+  const simulate = true;  // Toggle this to false for real GPS
+
+  const simulationRoute = [
+    { lat: 51.5007, lng: -0.1246 }, // Start
+    { lat: 51.5012, lng: -0.1249 }, // Step 1
+    { lat: 51.5017, lng: -0.1253 }, // Step 2
+    { lat: 51.5022, lng: -0.1257 }, // Step 3
+    { lat: 51.5026, lng: -0.1260 }, // Final (inside geofence)
+  ];
+  let simulationIndex = 0;
+
+  function postPosition(lat, lng) {
+    fetch('/api/positions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ latitude: lat, longitude: lng })
+    })
+    .then(res => res.json())
+    .then(data => {
       console.log("Posted:", data);
-    } catch (err) {
-      console.error("Failed to post position:", err);
-    }
-  }
-
-  async function fetchLatestPosition() {
-    try {
-      const res = await fetch('/api/positions/latest');
-      const data = await res.json();
-
-      if (!data || !data.latitude || !data.longitude) return;
-
       const latlng = [data.latitude, data.longitude];
       const state = data.state || "Unknown";
+      const zone = data.zone || "Unknown";
 
       if (!marker) {
         marker = L.marker(latlng).addTo(map);
@@ -54,38 +60,43 @@
         marker.setLatLng(latlng);
       }
 
-      marker.bindPopup(`State: ${state}`).openPopup();
-      map.setView(latlng, 16);
-    } catch (err) {
-      console.error("Error fetching latest position:", err);
-    }
+      marker.bindPopup(`Zone: ${zone}<br>State: ${state}`).openPopup();
+      map.setView(latlng, 17);
+
+      document.getElementById("state").innerText = `${state} (${zone})`;
+
+    })
+    .catch(err => {
+      console.error("Failed to post position:", err);
+    });
   }
 
-  function updateLocationFromDevice() {
-    if (!navigator.geolocation) {
-      alert("Geolocation is not supported by this browser.");
-      return;
-    }
+  function simulatePosition() {
+    if (simulationIndex >= simulationRoute.length) return;
 
+    const pos = simulationRoute[simulationIndex++];
+    postPosition(pos.lat, pos.lng);
+  }
+
+  if (simulate) {
+    simulatePosition(); // Post immediately
+    setInterval(simulatePosition, 5000);
+  } else {
     navigator.geolocation.watchPosition(
-      (pos) => {
-        const lat = pos.coords.latitude;
-        const lng = pos.coords.longitude;
+      (position) => {
+        const lat = position.coords.latitude;
+        const lng = position.coords.longitude;
         postPosition(lat, lng);
       },
-      (err) => {
-        console.error("Geolocation error:", err);
+      (error) => {
+        console.error("Geolocation error:", error);
         alert("Could not get your location.");
       },
-      { enableHighAccuracy: true, maximumAge: 10000, timeout: 5000 }
+      { enableHighAccuracy: true, maximumAge: 0, timeout: 5000 }
     );
   }
-
-  // Start everything
-  updateLocationFromDevice();
-  fetchLatestPosition();
-  setInterval(fetchLatestPosition, 5000);
 </script>
+
 
 
 </body>

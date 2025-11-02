@@ -6,6 +6,7 @@ from backend.models import Position
 from pydantic import BaseModel
 from backend.geofence import haversine
 import os
+from checkins import checkin_zones
 
 #app stuff
 app = FastAPI()
@@ -27,37 +28,34 @@ def checkin():
 
 @app.post("/api/positions")
 def create_position(position: PositionIn, session: Session = Depends(get_session)):
-    last = session.exec(
-        select(Position).order_by(Position.timestamp.desc()).limit(1)
-    ).first()
-    
-    #default to AWAITING_CHECKIN if no previous position
-    state = "AWAITING_CHECKIN"
-    distance = 0.0
-    
-    if last:
-        distance = haversine(last.latitude, last.longitude, position.latitude, position.longitude)
-        if distance > 50: #meters
-            state = "TRAVELLING"
-        
-    #create new position with computed state
+    # Default state
+    state = "TRAVELLING"
+    zone_name = None
+
+    # Check against all zones
+    for zone in checkin_zones:
+        dist = haversine(position.latitude, position.longitude, zone["latitude"], zone["longitude"])
+        if dist <= zone["radius_m"]:
+            state = "AWAITING_CHECKIN"
+            zone_name = zone["name"]
+            break
+
     pos = Position(
-        latitude = position.latitude,
-        longitude = position.longitude,
-        state=state #calculate later
+        latitude=position.latitude,
+        longitude=position.longitude,
+        state=state
     )
     session.add(pos)
     session.commit()
     session.refresh(pos)
-    
-    #return extra info
+
     return {
         "id": pos.id,
         "latitude": pos.latitude,
         "longitude": pos.longitude,
         "timestamp": pos.timestamp,
         "state": pos.state,
-        "distance_from_last": round(distance, 2)
+        "zone": zone_name
     }
     
 @app.get("/api/positions/latest")
