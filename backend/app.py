@@ -1,12 +1,14 @@
-from fastapi import FastAPI, Depends
+import os
+from fastapi import FastAPI, Depends, HTTPException
 from fastapi.responses import FileResponse
 from sqlmodel import Session, select
+from pydantic import BaseModel
 from backend.database import create_db_and_tables, get_session
 from backend.models import Position
-from pydantic import BaseModel
 from backend.geofence import haversine
-import os
-from checkins import checkin_zones
+from backend.checkins import checkin_zones
+
+
 
 #app stuff
 app = FastAPI()
@@ -68,3 +70,26 @@ def get_latest_position(session: Session = Depends(get_session)):
 def get_map():
     path = os.path.join(os.path.dirname(__file__), "..", "frontend", "index.html")
     return FileResponse(os.path.abspath(path))
+
+@app.post("/api/checkin")
+def checkin(session: Session = Depends(get_session)):
+    statement = select(Position).order_by(Position.id.desc()).limit(1)
+    pos = session.exec(statement).first()
+    
+    if not pos:
+        raise HTTPException(status_code=400, detail="No position found to check in.")
+    
+    if pos.state != "AWAITING_CHECKIN":
+        raise HTTPException(status_code=400, detail="Position not in a check-in zone.")
+    
+    pos.state = "CHECKED_IN"
+    session.add(pos)
+    session.commit()
+    session.refresh(pos)
+    
+    return {
+        "message": "Successfully checked in.",
+        "position_id": pos.id,
+        "timestamp": pos.timestamp
+    }
+    

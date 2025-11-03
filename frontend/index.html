@@ -17,12 +17,37 @@
   State: <span id="state">Loading...</span>
 </div>
 
+<p id = "state">Loading...</p>
+<button id="checkinBtn" style="display: none;">Check In</button>
+
 <div id="map"></div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <script>
   const map = L.map('map').setView([51.5007, -0.1246], 16);
+  const checkinBtn = document.getElementById("checkinBtn");
+
+  if (state == "AWAITING_CHECKIN") {
+    checkinBtn.innerText = "Check In";
+    checkinBtn.style.display = "block";
+  } else {
+    checkinBtn.style.display = "none";
+  }
+
+  checkinBtn,onclick = () => {
+    fetch('/api/checkin', {
+      method: 'POST'
+    })
+    .then(res => res.json())
+    .then(data => {
+      alert(data.message);
+    })
+    .catch(err => {
+      console.error("Check-in failed:", err);
+      alert("Check-in failed.");
+    });
+  };
 
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '© OpenStreetMap'
